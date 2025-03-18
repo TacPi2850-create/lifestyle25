@@ -34,7 +34,7 @@ def calcola_punti(row):
 # 📌 UI Streamlit
 st.set_page_config(page_title="Life Style", layout="wide")
 
-st.title("📅 Life Style - Monitoraggio Abitudini e Gamification")
+st.title("📅 Life Style - Monitoraggio Abitudini")
 st.subheader("🚀 Trasforma la tua crescita in una sfida!")
 
 # 📌 Sezione per selezionare la data e l'ora
