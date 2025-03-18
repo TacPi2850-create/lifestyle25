@@ -1,141 +1,98 @@
-import streamlit as st
+import os
 import pandas as pd
-import datetime
+import streamlit as st
 import plotly.express as px
-import os 
 
-# Nome del file CSV per il salvataggio dei progressi
+# 📌 Imposta il percorso del file CSV per salvare i dati
 FILE_PATH = "habit_tracker.csv"
 
-# Funzione per caricare i dati
+# 📌 Funzione per caricare i dati salvati
 def load_data():
     if os.path.exists(FILE_PATH):
         return pd.read_csv(FILE_PATH)
     else:
-        return pd.DataFrame(columns=["Data", "Passeggiata", "Pulizia Stanza", "Sistemazione Appunti", "Meditazione", "Danza", "Journaling", "Punti"])
+        return pd.DataFrame(columns=["Data", "Ora", "Passeggiata", "Pulizia Stanza", "Sistemazione Appunti", "Meditazione", "Danza", "Journaling", "Punti"])
 
-# Funzione per salvare i dati
+# 📌 Funzione per salvare i dati
 def save_data(df):
     df.to_csv(FILE_PATH, index=False)
 
-# Carica i dati
+# 📌 Carica i dati esistenti
 habit_data = load_data()
 
-# Personalizzazione stile CSS
-st.markdown(
-    """
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f5f5f5;
-            text-align: center;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .main-title {
-            text-align: center;
-            font-size: 40px;
-            font-weight: bold;
-            color: #3498db;
-        }
-        .sub-title {
-            text-align: center;
-            font-size: 22px;
-            color: #7f8c8d;
-            margin-bottom: 30px;
-        }
-        .progress-bar {
-            width: 100%;
-            background-color: #ddd;
-            border-radius: 5px;
-        }
-        .progress-bar-fill {
-            height: 20px;
-            background-color: #4CAF50;
-            text-align: center;
-            color: white;
-            border-radius: 5px;
-        }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# 📌 Funzione per calcolare i punti
+def calcola_punti(row):
+    punti = 0
+    if row["Passeggiata"]: punti += 10
+    if row["Pulizia Stanza"]: punti += 5
+    if row["Sistemazione Appunti"]: punti += 7
+    if row["Meditazione"]: punti += 8
+    if row["Danza"]: punti += 15
+    if row["Journaling"]: punti += 10
+    return punti
 
-# Titolo principale
-st.markdown("<div class='main-title'>🏆 Life Style - Sfida e Crescita</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-title'>Trasforma la disciplina in gioco!</div>", unsafe_allow_html=True)
+# 📌 UI Streamlit
+st.set_page_config(page_title="Life Style", layout="wide")
 
-# Seleziona la data
-selected_date = st.date_input("📅 Data", datetime.date.today())
-selected_datetime = selected_date.strftime('%Y-%m-%d')
-entry_exists = selected_datetime in habit_data["Data"].values
+st.title("📅 Life Style - Monitoraggio Abitudini e Gamification")
+st.subheader("🚀 Trasforma la tua crescita in una sfida!")
 
-# Attività
-st.markdown("### Seleziona le attività completate per guadagnare punti!")
-col1, col2, col3 = st.columns(3)
+# 📌 Sezione per selezionare la data e l'ora
+data = st.date_input("📆 Seleziona la data")
+ora = st.time_input("⏰ Seleziona l'orario")
 
+# 📌 Griglia delle abitudini
+st.subheader("🎯 Seleziona le attività completate")
+col1, col2 = st.columns(2)
 with col1:
-    passeggiata = st.checkbox("🏃 Passeggiata (+10 punti)", value=False if not entry_exists else habit_data.loc[habit_data["Data"] == selected_datetime, "Passeggiata"].values[0])
-    pulizia_stanza = st.checkbox("🏡 Pulizia Stanza (+5 punti)", value=False if not entry_exists else habit_data.loc[habit_data["Data"] == selected_datetime, "Pulizia Stanza"].values[0])
+    passeggiata = st.checkbox("🏃 Passeggiata (10 punti)")
+    pulizia_stanza = st.checkbox("🏡 Pulizia Stanza (5 punti)")
+    sistemazione_appunti = st.checkbox("📖 Sistemazione Appunti (7 punti)")
 with col2:
-    sistemazione_appunti = st.checkbox("📖 Sistemazione Appunti (+5 punti)", value=False if not entry_exists else habit_data.loc[habit_data["Data"] == selected_datetime, "Sistemazione Appunti"].values[0])
-    meditazione = st.checkbox("🧘 Meditazione (+7 punti)", value=False if not entry_exists else habit_data.loc[habit_data["Data"] == selected_datetime, "Meditazione"].values[0])
-with col3:
-    danza = st.checkbox("💃 Danza (+15 punti)", value=False if not entry_exists else habit_data.loc[habit_data["Data"] == selected_datetime, "Danza"].values[0])
-    journaling = st.checkbox("✍️ Journaling (+10 punti)", value=False if not entry_exists else habit_data.loc[habit_data["Data"] == selected_datetime, "Journaling"].values[0])
+    meditazione = st.checkbox("🧘 Meditazione (8 punti)")
+    danza = st.checkbox("💃 Danza (15 punti)")
+    journaling = st.checkbox("✍️ Journaling (10 punti)")
 
-# Calcolo del punteggio
-total_points = 0
-total_points += 10 if passeggiata else 0
-total_points += 5 if pulizia_stanza else 0
-total_points += 5 if sistemazione_appunti else 0
-total_points += 7 if meditazione else 0
-total_points += 15 if danza else 0
-total_points += 10 if journaling else 0
-
-st.markdown(f"### 🌟 Punti totali oggi: **{total_points}**")
-
-# Barra di progresso
-progress = min(total_points / 50 * 100, 100)  # 50 punti massimo per giornata
-st.markdown(f"""
-    <div class='progress-bar'>
-        <div class='progress-bar-fill' style='width:{progress}%'>{int(progress)}%</div>
-    </div>
-""", unsafe_allow_html=True)
-
-# Bottone per salvare
+# 📌 Pulsante per salvare i progressi
 if st.button("💾 Salva i progressi"):
-    new_entry = {
-        "Data": selected_datetime,
+    nuovo_record = pd.DataFrame([{
+        "Data": data,
+        "Ora": ora,
         "Passeggiata": passeggiata,
         "Pulizia Stanza": pulizia_stanza,
         "Sistemazione Appunti": sistemazione_appunti,
         "Meditazione": meditazione,
         "Danza": danza,
-        "Journaling": journaling,
-        "Punti": total_points
-    }
+        "Journaling": journaling
+    }])
+    nuovo_record["Punti"] = nuovo_record.apply(calcola_punti, axis=1)
     
-    if entry_exists:
-        habit_data.loc[habit_data["Data"] == selected_datetime] = new_entry
-    else:
-        habit_data = pd.concat([habit_data, pd.DataFrame([new_entry])], ignore_index=True)
-    
+    habit_data = pd.concat([habit_data, nuovo_record], ignore_index=True)
     save_data(habit_data)
     st.success("✅ Progressi salvati con successo!")
 
-# Grafico dei progressi
+# 📌 Sezione per eliminare un record
+st.subheader("🗑️ Elimina un progresso specifico")
 if not habit_data.empty:
-    st.subheader("📊 Andamento dei Punti")
-    fig = px.line(habit_data, x="Data", y="Punti", markers=True, title="Punti giornalieri")
-    st.plotly_chart(fig)
+    eliminare = st.selectbox("Seleziona il record da eliminare", habit_data["Data"] + " " + habit_data["Ora"].astype(str))
+    if st.button("🗑️ Elimina la riga selezionata"):
+        habit_data = habit_data[~((habit_data["Data"] + " " + habit_data["Ora"].astype(str)) == eliminare)]
+        save_data(habit_data)
+        st.warning("❌ Progresso eliminato!")
 
-# Mostra i dati salvati
-st.subheader("📜 Storico Progressi")
+# 📌 Tabella dei progressi registrati
+st.subheader("📊 Progressi Registrati")
 st.dataframe(habit_data)
 
-# Frase motivazionale
-st.markdown("### 🚀 'Il successo è la somma di piccoli sforzi, ripetuti giorno dopo giorno.' - Robert Collier")
+# 📌 Grafico dei punti settimanali
+st.subheader("📈 Andamento dei Punti")
+if not habit_data.empty:
+    habit_data["Data"] = pd.to_datetime(habit_data["Data"])
+    punti_giornalieri = habit_data.groupby("Data")["Punti"].sum().reset_index()
+    fig = px.line(punti_giornalieri, x="Data", y="Punti", markers=True, title="Punti accumulati nel tempo")
+    st.plotly_chart(fig)
+
+# 📌 Frase motivazionale
+st.markdown("""
+    🌟 **Ricorda:** La disciplina è il ponte tra gli obiettivi e i risultati! Continua così! 💪  
+""", unsafe_allow_html=True)
