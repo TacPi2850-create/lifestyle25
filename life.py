@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import datetime
-import os
 import plotly.express as px
 
 # Nome del file CSV per il salvataggio dei progressi
