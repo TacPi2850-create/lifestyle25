@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import datetime
 import plotly.express as px
+import os 
 
 # Nome del file CSV per il salvataggio dei progressi
 FILE_PATH = "habit_tracker.csv"
