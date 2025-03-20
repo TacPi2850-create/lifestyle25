@@ -5,16 +5,18 @@ import sqlite3
 import plotly.express as px
 from pathlib import Path
 
+# Imposta la directory base
 BASE_DIR = Path(__file__).parent
-img_path = BASE_DIR / "assets" / "image_1.jpg"
+DB_PATH = BASE_DIR / "habit_tracker.db"
+IMG_DIR = BASE_DIR / "assets"
+IMG_PATH_TOP = IMG_DIR / "image_1.jpg"
+IMG_PATH_BOTTOM = IMG_DIR / "image_2.jpg"
 
-if img_path.exists():
-    st.image(str(img_path), use_container_width=True)
-else:
-    st.error("Immagine non trovata.")
+# Assicurati che la cartella assets esista
+IMG_DIR.mkdir(parents=True, exist_ok=True)
 
 # Connessione al database SQLite
-conn = sqlite3.connect("habit_tracker.db", check_same_thread=False)
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 c = conn.cursor()
 
 # Creazione tabella se non esiste
@@ -62,7 +64,8 @@ habit_data = load_data()
 st.set_page_config(layout="wide", page_title="Life Style Tracker")
 
 # Immagine introduttiva
-st.image("assets/image_1.jpg", use_container_width=True)
+if IMG_PATH_TOP.exists():
+    st.image(str(IMG_PATH_TOP), use_container_width=True)
 
 # Titolo e sottotitolo
 st.markdown("""
@@ -75,31 +78,25 @@ selected_date = st.date_input("📅 Data", datetime.date.today())
 selected_date_str = selected_date.strftime('%Y-%m-%d')
 entry_exists = not habit_data[habit_data['date'] == selected_date_str].empty
 
-# Stato iniziale attività
-if entry_exists:
-    entry_row = habit_data[habit_data['date'] == selected_date_str].iloc[0]
-else:
-    entry_row = {}
-
 # Attività
-def activity_checkbox(label, points, default=False):
-    return st.checkbox(f"{label} (+{points} punti)", value=bool(default))
-
 st.markdown("### ✅ Attività completate oggi")
 col1, col2, col3 = st.columns(3)
 
-with col1:
-    passeggiata = activity_checkbox("🏃 Passeggiata", 10, entry_row.get('passeggiata', 0))
-    pulizia_stanza = activity_checkbox("🏡 Pulizia Stanza", 5, entry_row.get('pulizia_stanza', 0))
-with col2:
-    sistemazione_appunti = activity_checkbox("📖 Sistemazione Appunti", 5, entry_row.get('sistemazione_appunti', 0))
-    meditazione = activity_checkbox("🧘 Meditazione", 7, entry_row.get('meditazione', 0))
-with col3:
-    danza = activity_checkbox("💃 Danza", 15, entry_row.get('danza', 0))
-    journaling = activity_checkbox("✍️ Journaling", 10, entry_row.get('journaling', 0))
-    lettura = activity_checkbox("📚 Lettura prima di dormire", 8, entry_row.get('lettura', 0))
+def activity_checkbox(label, points, default=False):
+    return st.checkbox(f"{label} (+{points} punti)", value=bool(default))
 
-# Calcolo punti totali
+with col1:
+    passeggiata = activity_checkbox("🏃 Passeggiata", 10, entry_exists)
+    pulizia_stanza = activity_checkbox("🏡 Pulizia Stanza", 5, entry_exists)
+with col2:
+    sistemazione_appunti = activity_checkbox("📖 Sistemazione Appunti", 5, entry_exists)
+    meditazione = activity_checkbox("🧘 Meditazione", 7, entry_exists)
+with col3:
+    danza = activity_checkbox("💃 Danza", 15, entry_exists)
+    journaling = activity_checkbox("✍️ Journaling", 10, entry_exists)
+    lettura = activity_checkbox("📚 Lettura prima di dormire", 8, entry_exists)
+
+# Calcolo punti
 total_points = sum([
     passeggiata * 10, pulizia_stanza * 5, sistemazione_appunti * 5,
     meditazione * 7, danza * 15, journaling * 10, lettura * 8
@@ -132,22 +129,22 @@ with col_del_all:
 
 # Grafici e storico
 data_updated = load_data()
-
 if not data_updated.empty:
     st.markdown("---")
     st.subheader("📊 Andamento dei Punti")
     fig = px.line(data_updated, x="date", y="punti", markers=True, title="Punti giornalieri")
     st.plotly_chart(fig, use_container_width=True)
-
+    
     st.subheader("📜 Storico Progressi")
     st.dataframe(data_updated, use_container_width=True)
-
-    # Obiettivi settimanali
-    data_updated['date'] = pd.to_datetime(data_updated['date'])
+    
     current_week = datetime.date.today().isocalendar()[1]
+    data_updated['date'] = pd.to_datetime(data_updated['date'])
     weekly_points = data_updated[data_updated['date'].dt.isocalendar().week == current_week]['punti'].sum()
     st.markdown(f"### 🎯 Punti totalizzati questa settimana: **{weekly_points}**")
 
 # Immagine e frase motivazionale finale
-st.image("assets/image_2.jpg", use_container_width=True)
+if IMG_PATH_BOTTOM.exists():
+    st.image(str(IMG_PATH_BOTTOM), use_container_width=True)
+
 st.markdown("🚀 *'Il successo è la somma di piccoli sforzi, ripetuti giorno dopo giorno.'* – Robert Collier")
