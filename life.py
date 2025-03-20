@@ -4,9 +4,11 @@ import datetime
 import sqlite3
 import plotly.express as px
 
-# Creazione database SQLite
-conn = sqlite3.connect("habit_tracker.db")
+# Connessione al database SQLite
+conn = sqlite3.connect("habit_tracker.db", check_same_thread=False)
 c = conn.cursor()
+
+# Creazione tabella se non esiste
 c.execute('''CREATE TABLE IF NOT EXISTS habits (
                 date TEXT PRIMARY KEY,
                 passeggiata INTEGER,
@@ -19,120 +21,124 @@ c.execute('''CREATE TABLE IF NOT EXISTS habits (
                 punti INTEGER)''')
 conn.commit()
 
-# Funzione per caricare dati
+# Funzioni gestione dati
 def load_data():
-    return pd.read_sql("SELECT * FROM habits", conn)
+    return pd.read_sql("SELECT * FROM habits ORDER BY date DESC", conn)
 
-# Funzione per salvare dati
 def save_data(entry):
-    c.execute("""
-        INSERT INTO habits (date, passeggiata, pulizia_stanza, sistemazione_appunti, meditazione, danza, journaling, lettura, punti)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(date) DO UPDATE SET
-        passeggiata=excluded.passeggiata,
-        pulizia_stanza=excluded.pulizia_stanza,
-        sistemazione_appunti=excluded.sistemazione_appunti,
-        meditazione=excluded.meditazione,
-        danza=excluded.danza,
-        journaling=excluded.journaling,
-        lettura=excluded.lettura,
-        punti=excluded.punti
-    """, entry)
+    c.execute('''INSERT INTO habits VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON CONFLICT(date) DO UPDATE SET
+                 passeggiata=excluded.passeggiata,
+                 pulizia_stanza=excluded.pulizia_stanza,
+                 sistemazione_appunti=excluded.sistemazione_appunti,
+                 meditazione=excluded.meditazione,
+                 danza=excluded.danza,
+                 journaling=excluded.journaling,
+                 lettura=excluded.lettura,
+                 punti=excluded.punti''', entry)
     conn.commit()
 
-# Funzione per eliminare un record
 def delete_entry(date):
-    c.execute("DELETE FROM habits WHERE date = ?", (date,))
+    c.execute("DELETE FROM habits WHERE date=?", (date,))
     conn.commit()
 
-# Funzione per eliminare tutti i progressi
 def delete_all_entries():
     c.execute("DELETE FROM habits")
     conn.commit()
 
-# Carica i dati
+# Caricamento iniziale dei dati
 habit_data = load_data()
 
-# UI
-st.set_page_config(layout="wide")  # Imposta la UI su tutta la larghezza dello schermo
+# Configurazione pagina
+st.set_page_config(layout="wide", page_title="Life Style Tracker")
 
-# Immagine sopra il titolo
+# Immagine introduttiva
 st.image("assets/background1.jpg", use_container_width=True)
 
+# Titolo e sottotitolo
 st.markdown("""
-    <h1 style='text-align: center; font-size: 36px; color: #3498db;'>🏆 Life Style - Sfida e Crescita</h1>
-    <h3 style='text-align: center; font-size: 24px; color: #7f8c8d;'>Trasforma la disciplina in gioco!</h3>
+<h1 style='text-align: center; color: #3498db;'>🏆 Life Style - Sfida e Crescita</h1>
+<h3 style='text-align: center; color: #7f8c8d;'>Trasforma la disciplina in gioco!</h3>
 """, unsafe_allow_html=True)
 
-# Selezione data
-selected_date = st.date_input("📅 Data", datetime.date.today()).strftime('%Y-%m-%d')
-entry_exists = selected_date in habit_data["date"].values if not habit_data.empty else False
+# Data selezionata
+selected_date = st.date_input("📅 Data", datetime.date.today())
+selected_date_str = selected_date.strftime('%Y-%m-%d')
+entry_exists = not habit_data[habit_data['date'] == selected_date_str].empty
 
-# Attività giornaliere
-st.markdown("<h3 style='font-size: 22px;'>Seleziona le attività completate per guadagnare punti!</h3>", unsafe_allow_html=True)
+# Stato iniziale attività
+if entry_exists:
+    entry_row = habit_data[habit_data['date'] == selected_date_str].iloc[0]
+else:
+    entry_row = {}
 
+# Attività
+def activity_checkbox(label, points, default=False):
+    return st.checkbox(f"{label} (+{points} punti)", value=bool(default))
+
+st.markdown("### ✅ Attività completate oggi")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    passeggiata = st.checkbox("🏃 Passeggiata (+10 punti)")
-    pulizia_stanza = st.checkbox("🏡 Pulizia Stanza (+5 punti)")
+    passeggiata = activity_checkbox("🏃 Passeggiata", 10, entry_row.get('passeggiata', 0))
+    pulizia_stanza = activity_checkbox("🏡 Pulizia Stanza", 5, entry_row.get('pulizia_stanza', 0))
 with col2:
-    sistemazione_appunti = st.checkbox("📖 Sistemazione Appunti (+5 punti)")
-    meditazione = st.checkbox("🧘 Meditazione (+7 punti)")
+    sistemazione_appunti = activity_checkbox("📖 Sistemazione Appunti", 5, entry_row.get('sistemazione_appunti', 0))
+    meditazione = activity_checkbox("🧘 Meditazione", 7, entry_row.get('meditazione', 0))
 with col3:
-    danza = st.checkbox("💃 Danza (+15 punti)")
-    journaling = st.checkbox("✍️ Journaling (+10 punti)")
-    lettura = st.checkbox("📚 Lettura prima di dormire (+8 punti)")
+    danza = activity_checkbox("💃 Danza", 15, entry_row.get('danza', 0))
+    journaling = activity_checkbox("✍️ Journaling", 10, entry_row.get('journaling', 0))
+    lettura = activity_checkbox("📚 Lettura prima di dormire", 8, entry_row.get('lettura', 0))
 
-# Calcolo punti
-total_points = (
-    10 * passeggiata + 5 * pulizia_stanza + 5 * sistemazione_appunti +
-    7 * meditazione + 15 * danza + 10 * journaling + 8 * lettura
-)
+# Calcolo punti totali
+total_points = sum([
+    passeggiata * 10, pulizia_stanza * 5, sistemazione_appunti * 5,
+    meditazione * 7, danza * 15, journaling * 10, lettura * 8
+])
 
-st.markdown(f"<h3 style='font-size: 22px;'>🌟 Punti totali oggi: <b>{total_points}</b></h3>", unsafe_allow_html=True)
+st.markdown(f"### 🌟 Punti totali oggi: **{total_points}**")
+st.progress(min(total_points / 50, 1.0))
 
-# Barra di progresso
-progress = min(total_points / 50 * 100, 100)
-st.progress(progress / 100)
+# Pulsanti gestione dati
+col_save, col_del, col_del_all = st.columns(3)
 
-# Salvataggio dati
-if st.button("💾 Salva i progressi"):
-    entry = (selected_date, passeggiata, pulizia_stanza, sistemazione_appunti, meditazione, danza, journaling, lettura, total_points)
-    save_data(entry)
-    st.success("✅ Progressi salvati con successo!")
-    st.rerun()
+with col_save:
+    if st.button("💾 Salva i progressi"):
+        save_data((selected_date_str, passeggiata, pulizia_stanza, sistemazione_appunti,
+                   meditazione, danza, journaling, lettura, total_points))
+        st.success("✅ Progressi salvati!")
+        st.rerun()
 
-# Eliminazione di un record specifico
-if st.button("🗑️ Elimina i progressi di oggi"):
-    delete_entry(selected_date)
-    st.warning("⚠️ Progressi eliminati!")
-    st.rerun()
+with col_del:
+    if st.button("🗑️ Elimina i progressi di oggi"):
+        delete_entry(selected_date_str)
+        st.warning("⚠️ Progressi di oggi eliminati!")
+        st.rerun()
 
-# Eliminazione di tutti i record
-if st.button("🗑️ Elimina tutti i progressi"):
-    delete_all_entries()
-    st.warning("⚠️ Tutti i progressi sono stati eliminati!")
-    st.rerun()
+with col_del_all:
+    if st.button("🗑️ Elimina tutti i progressi"):
+        delete_all_entries()
+        st.warning("⚠️ Tutti i progressi eliminati!")
+        st.rerun()
 
-# Grafico andamento punti
-habit_data = load_data()
-if not habit_data.empty:
+# Grafici e storico
+data_updated = load_data()
+
+if not data_updated.empty:
+    st.markdown("---")
     st.subheader("📊 Andamento dei Punti")
-    fig = px.line(habit_data, x="date", y="punti", markers=True, title="Punti giornalieri")
-    st.plotly_chart(fig)
+    fig = px.line(data_updated, x="date", y="punti", markers=True, title="Punti giornalieri")
+    st.plotly_chart(fig, use_container_width=True)
 
-# Storico progressi
-st.subheader("📜 Storico Progressi")
-st.dataframe(habit_data)
+    st.subheader("📜 Storico Progressi")
+    st.dataframe(data_updated, use_container_width=True)
 
-# Obiettivo settimanale
-st.subheader("🎯 Obiettivi Settimanali")
-total_weekly_points = habit_data['punti'].sum() if not habit_data.empty else 0
-st.markdown(f"<h3 style='font-size: 22px;'>Hai totalizzato <b>{total_weekly_points}</b> punti questa settimana!</h3>", unsafe_allow_html=True)
+    # Obiettivi settimanali
+    data_updated['date'] = pd.to_datetime(data_updated['date'])
+    current_week = datetime.date.today().isocalendar()[1]
+    weekly_points = data_updated[data_updated['date'].dt.isocalendar().week == current_week]['punti'].sum()
+    st.markdown(f"### 🎯 Punti totalizzati questa settimana: **{weekly_points}**")
 
-# Immagine in fondo alla pagina
+# Immagine e frase motivazionale finale
 st.image("assets/background2.jpg", use_container_width=True)
-
-# Frase motivazionale
-st.markdown("<h3 style='font-size: 22px;'>🚀 'Il successo è la somma di piccoli sforzi, ripetuti giorno dopo giorno.' - Robert Collier</h3>", unsafe_allow_html=True)
+st.markdown("🚀 *'Il successo è la somma di piccoli sforzi, ripetuti giorno dopo giorno.'* – Robert Collier")
