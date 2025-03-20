@@ -1,98 +1,138 @@
-import os
-import pandas as pd
 import streamlit as st
+import pandas as pd
+import datetime
+import sqlite3
 import plotly.express as px
 
-# 📌 Imposta il percorso del file CSV per salvare i dati
-FILE_PATH = "habit_tracker.csv"
+# Creazione database SQLite
+conn = sqlite3.connect("habit_tracker.db")
+c = conn.cursor()
+c.execute('''CREATE TABLE IF NOT EXISTS habits (
+                date TEXT PRIMARY KEY,
+                passeggiata INTEGER,
+                pulizia_stanza INTEGER,
+                sistemazione_appunti INTEGER,
+                meditazione INTEGER,
+                danza INTEGER,
+                journaling INTEGER,
+                lettura INTEGER,
+                punti INTEGER)''')
+conn.commit()
 
-# 📌 Funzione per caricare i dati salvati
+# Funzione per caricare dati
 def load_data():
-    if os.path.exists(FILE_PATH):
-        return pd.read_csv(FILE_PATH)
-    else:
-        return pd.DataFrame(columns=["Data", "Ora", "Passeggiata", "Pulizia Stanza", "Sistemazione Appunti", "Meditazione", "Danza", "Journaling", "Punti"])
+    return pd.read_sql("SELECT * FROM habits", conn)
 
-# 📌 Funzione per salvare i dati
-def save_data(df):
-    df.to_csv(FILE_PATH, index=False)
+# Funzione per salvare dati
+def save_data(entry):
+    c.execute("""
+        INSERT INTO habits (date, passeggiata, pulizia_stanza, sistemazione_appunti, meditazione, danza, journaling, lettura, punti)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(date) DO UPDATE SET
+        passeggiata=excluded.passeggiata,
+        pulizia_stanza=excluded.pulizia_stanza,
+        sistemazione_appunti=excluded.sistemazione_appunti,
+        meditazione=excluded.meditazione,
+        danza=excluded.danza,
+        journaling=excluded.journaling,
+        lettura=excluded.lettura,
+        punti=excluded.punti
+    """, entry)
+    conn.commit()
 
-# 📌 Carica i dati esistenti
+# Funzione per eliminare un record
+def delete_entry(date):
+    c.execute("DELETE FROM habits WHERE date = ?", (date,))
+    conn.commit()
+
+# Funzione per eliminare tutti i progressi
+def delete_all_entries():
+    c.execute("DELETE FROM habits")
+    conn.commit()
+
+# Carica i dati
 habit_data = load_data()
 
-# 📌 Funzione per calcolare i punti
-def calcola_punti(row):
-    punti = 0
-    if row["Passeggiata"]: punti += 10
-    if row["Pulizia Stanza"]: punti += 5
-    if row["Sistemazione Appunti"]: punti += 7
-    if row["Meditazione"]: punti += 8
-    if row["Danza"]: punti += 15
-    if row["Journaling"]: punti += 10
-    return punti
+# UI
+st.set_page_config(layout="wide")  # Imposta la UI su tutta la larghezza dello schermo
 
-# 📌 UI Streamlit
-st.set_page_config(page_title="Life Style", layout="wide")
+# Immagine sopra il titolo
+st.image("assets/background1.jpg", use_container_width=True)
 
-st.title("📅 Life Style - Monitoraggio Abitudini")
-st.subheader("🚀 Trasforma la tua crescita in una sfida!")
+st.markdown("""
+    <h1 style='text-align: center; font-size: 36px; color: #3498db;'>🏆 Life Style - Sfida e Crescita</h1>
+    <h3 style='text-align: center; font-size: 24px; color: #7f8c8d;'>Trasforma la disciplina in gioco!</h3>
+""", unsafe_allow_html=True)
 
-# 📌 Sezione per selezionare la data e l'ora
-data = st.date_input("📆 Seleziona la data")
-ora = st.time_input("⏰ Seleziona l'orario")
+# Selezione data
+selected_date = st.date_input("📅 Data", datetime.date.today()).strftime('%Y-%m-%d')
+entry_exists = selected_date in habit_data["date"].values if not habit_data.empty else False
 
-# 📌 Griglia delle abitudini
-st.subheader("🎯 Seleziona le attività completate")
-col1, col2 = st.columns(2)
+# Attività giornaliere
+st.markdown("<h3 style='font-size: 22px;'>Seleziona le attività completate per guadagnare punti!</h3>", unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+
 with col1:
-    passeggiata = st.checkbox("🏃 Passeggiata (10 punti)")
-    pulizia_stanza = st.checkbox("🏡 Pulizia Stanza (5 punti)")
-    sistemazione_appunti = st.checkbox("📖 Sistemazione Appunti (7 punti)")
+    passeggiata = st.checkbox("🏃 Passeggiata (+10 punti)")
+    pulizia_stanza = st.checkbox("🏡 Pulizia Stanza (+5 punti)")
 with col2:
-    meditazione = st.checkbox("🧘 Meditazione (8 punti)")
-    danza = st.checkbox("💃 Danza (15 punti)")
-    journaling = st.checkbox("✍️ Journaling (10 punti)")
+    sistemazione_appunti = st.checkbox("📖 Sistemazione Appunti (+5 punti)")
+    meditazione = st.checkbox("🧘 Meditazione (+7 punti)")
+with col3:
+    danza = st.checkbox("💃 Danza (+15 punti)")
+    journaling = st.checkbox("✍️ Journaling (+10 punti)")
+    lettura = st.checkbox("📚 Lettura prima di dormire (+8 punti)")
 
-# 📌 Pulsante per salvare i progressi
+# Calcolo punti
+total_points = (
+    10 * passeggiata + 5 * pulizia_stanza + 5 * sistemazione_appunti +
+    7 * meditazione + 15 * danza + 10 * journaling + 8 * lettura
+)
+
+st.markdown(f"<h3 style='font-size: 22px;'>🌟 Punti totali oggi: <b>{total_points}</b></h3>", unsafe_allow_html=True)
+
+# Barra di progresso
+progress = min(total_points / 50 * 100, 100)
+st.progress(progress / 100)
+
+# Salvataggio dati
 if st.button("💾 Salva i progressi"):
-    nuovo_record = pd.DataFrame([{
-        "Data": data,
-        "Ora": ora,
-        "Passeggiata": passeggiata,
-        "Pulizia Stanza": pulizia_stanza,
-        "Sistemazione Appunti": sistemazione_appunti,
-        "Meditazione": meditazione,
-        "Danza": danza,
-        "Journaling": journaling
-    }])
-    nuovo_record["Punti"] = nuovo_record.apply(calcola_punti, axis=1)
-    
-    habit_data = pd.concat([habit_data, nuovo_record], ignore_index=True)
-    save_data(habit_data)
+    entry = (selected_date, passeggiata, pulizia_stanza, sistemazione_appunti, meditazione, danza, journaling, lettura, total_points)
+    save_data(entry)
     st.success("✅ Progressi salvati con successo!")
+    st.rerun()
 
-# 📌 Sezione per eliminare un record
-st.subheader("🗑️ Elimina un progresso specifico")
+# Eliminazione di un record specifico
+if st.button("🗑️ Elimina i progressi di oggi"):
+    delete_entry(selected_date)
+    st.warning("⚠️ Progressi eliminati!")
+    st.rerun()
+
+# Eliminazione di tutti i record
+if st.button("🗑️ Elimina tutti i progressi"):
+    delete_all_entries()
+    st.warning("⚠️ Tutti i progressi sono stati eliminati!")
+    st.rerun()
+
+# Grafico andamento punti
+habit_data = load_data()
 if not habit_data.empty:
-    eliminare = st.selectbox("Seleziona il record da eliminare", habit_data["Data"] + " " + habit_data["Ora"].astype(str))
-    if st.button("🗑️ Elimina la riga selezionata"):
-        habit_data = habit_data[~((habit_data["Data"] + " " + habit_data["Ora"].astype(str)) == eliminare)]
-        save_data(habit_data)
-        st.warning("❌ Progresso eliminato!")
-
-# 📌 Tabella dei progressi registrati
-st.subheader("📊 Progressi Registrati")
-st.dataframe(habit_data)
-
-# 📌 Grafico dei punti settimanali
-st.subheader("📈 Andamento dei Punti")
-if not habit_data.empty:
-    habit_data["Data"] = pd.to_datetime(habit_data["Data"])
-    punti_giornalieri = habit_data.groupby("Data")["Punti"].sum().reset_index()
-    fig = px.line(punti_giornalieri, x="Data", y="Punti", markers=True, title="Punti accumulati nel tempo")
+    st.subheader("📊 Andamento dei Punti")
+    fig = px.line(habit_data, x="date", y="punti", markers=True, title="Punti giornalieri")
     st.plotly_chart(fig)
 
-# 📌 Frase motivazionale
-st.markdown("""
-    🌟 **Ricorda:** La disciplina è il ponte tra gli obiettivi e i risultati! Continua così! 💪  
-""", unsafe_allow_html=True)
+# Storico progressi
+st.subheader("📜 Storico Progressi")
+st.dataframe(habit_data)
+
+# Obiettivo settimanale
+st.subheader("🎯 Obiettivi Settimanali")
+total_weekly_points = habit_data['punti'].sum() if not habit_data.empty else 0
+st.markdown(f"<h3 style='font-size: 22px;'>Hai totalizzato <b>{total_weekly_points}</b> punti questa settimana!</h3>", unsafe_allow_html=True)
+
+# Immagine in fondo alla pagina
+st.image("assets/background2.jpg", use_container_width=True)
+
+# Frase motivazionale
+st.markdown("<h3 style='font-size: 22px;'>🚀 'Il successo è la somma di piccoli sforzi, ripetuti giorno dopo giorno.' - Robert Collier</h3>", unsafe_allow_html=True)
