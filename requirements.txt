@@ -2,4 +2,3 @@ streamlit
 pandas
 datetime
 plotly
-sqlite3
