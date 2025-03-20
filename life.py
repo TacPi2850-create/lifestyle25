@@ -9,8 +9,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "habit_tracker.db"
 IMG_DIR = BASE_DIR / "assets"
-IMG_PATH_TOP = IMG_DIR / "image_1.jpg"
-IMG_PATH_BOTTOM = IMG_DIR / "image_2.jpg"
+IMG_PATH_TOP = IMG_DIR / "image_2.jpg"
+IMG_PATH_BOTTOM = IMG_DIR / "image_1.jpg"
 
 # Assicurati che la cartella assets esista
 IMG_DIR.mkdir(parents=True, exist_ok=True)
