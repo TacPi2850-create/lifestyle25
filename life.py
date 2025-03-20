@@ -3,6 +3,15 @@ import pandas as pd
 import datetime
 import sqlite3
 import plotly.express as px
+from pathlib import Path
+
+BASE_DIR = Path(__file__).parent
+img_path = BASE_DIR / "assets" / "background1.jpg"
+
+if img_path.exists():
+    st.image(str(img_path), use_container_width=True)
+else:
+    st.error("Immagine non trovata.")
 
 # Connessione al database SQLite
 conn = sqlite3.connect("habit_tracker.db", check_same_thread=False)
