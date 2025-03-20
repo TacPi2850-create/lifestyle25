@@ -6,7 +6,7 @@ import plotly.express as px
 from pathlib import Path
 
 BASE_DIR = Path(__file__).parent
-img_path = BASE_DIR / "assets" / "background1.jpg"
+img_path = BASE_DIR / "assets" / "image_1.jpg"
 
 if img_path.exists():
     st.image(str(img_path), use_container_width=True)
@@ -62,7 +62,7 @@ habit_data = load_data()
 st.set_page_config(layout="wide", page_title="Life Style Tracker")
 
 # Immagine introduttiva
-st.image("assets/background1.jpg", use_container_width=True)
+st.image("assets/image_1.jpg", use_container_width=True)
 
 # Titolo e sottotitolo
 st.markdown("""
@@ -149,5 +149,5 @@ if not data_updated.empty:
     st.markdown(f"### 🎯 Punti totalizzati questa settimana: **{weekly_points}**")
 
 # Immagine e frase motivazionale finale
-st.image("assets/background2.jpg", use_container_width=True)
+st.image("assets/image_2.jpg", use_container_width=True)
 st.markdown("🚀 *'Il successo è la somma di piccoli sforzi, ripetuti giorno dopo giorno.'* – Robert Collier")
