@@ -1,4 +1,4 @@
-# lifestyle25
+## Lifestyle 2025
 🏆 Life Style Tracker – Sfida e Crescita
 "Il successo è la somma di piccoli sforzi, ripetuti giorno dopo giorno." – Robert Collier
 
